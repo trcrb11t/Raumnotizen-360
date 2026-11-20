@@ -55,7 +55,8 @@ header{display:flex;gap:8px;align-items:center;padding:calc(6px + var(--st)) cal
 .bar{display:flex;gap:8px;align-items:center;padding:8px calc(10px + var(--sr)) calc(8px + var(--sb)) calc(10px + var(--sl));background:var(--panel);border-top:1px solid var(--line);z-index:5}
 .bar .grow{flex:1}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.seg button{border:0;border-radius:0;background:transparent;padding:10px 12px}
+.seg button{border:0;border-radius:0;background:transparent;padding:10px 8px;font-size:14px}
+.bar{overflow-x:auto}
 .seg button.on{background:var(--accent);color:#fff}
 #shade{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:19}
 #shade[hidden]{display:none}
@@ -109,6 +110,19 @@ input[type=checkbox]{width:22px;height:22px}
 #toast{position:fixed;left:50%;bottom:calc(76px + var(--sb));transform:translateX(-50%);background:#2b3240;border:1px solid var(--line);border-radius:10px;padding:10px 14px;z-index:60;width:max-content;max-width:92vw;box-shadow:0 6px 20px rgba(0,0,0,.4);font-size:14px}
 #toast[hidden]{display:none}
 #askWrap{z-index:55}
+
+#draw{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+#draw text{font:600 13px system-ui,"Segoe UI",Roboto,sans-serif;paint-order:stroke;stroke:rgba(0,0,0,.85);stroke-width:4px;fill:#fff}
+#stage.draw{cursor:crosshair}
+#stage.draw .hit{pointer-events:stroke;cursor:pointer}
+#drawBar{position:absolute;left:8px;top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:rgba(20,23,28,.92);border:1px solid var(--line);border-radius:10px;padding:6px;z-index:3;max-width:calc(100% - 16px)}
+#drawBar[hidden]{display:none}
+#drawBar button{min-height:34px;padding:5px 10px}
+#drawBar .sw{display:flex;gap:5px;flex-wrap:wrap}
+#drawBar .sw button{width:26px;height:26px;min-height:0;padding:0;border-radius:50%;border:2px solid rgba(255,255,255,.35)}
+#drawBar .sw button.on{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
+#drawBar select{width:auto;padding:5px 6px}
+#drawBar input[type=color]{width:34px;height:32px;padding:0;border:0;background:none}
 </style>
 </head>
 <body>
@@ -120,15 +134,23 @@ input[type=checkbox]{width:22px;height:22px}
   </header>
   <div id="stage">
     <canvas id="gl"></canvas>
-    <div id="overlay"></div>
+    <svg id="draw"></svg>
+      <div id="overlay"></div>
     <div id="hint" hidden>Ins Bild tippen = Marker setzen · Marker ziehen = verschieben · Marker antippen = bearbeiten</div>
-    <div id="card" hidden></div>
+    <div id="drawBar" hidden>
+        <div class="seg"><button id="tLine" class="on">Linie</button><button id="tFree">Freihand</button></div>
+        <div class="sw" id="swatches"></div>
+        <input type="color" id="dColor" value="#ff3b30" title="Eigene Farbe">
+        <select id="dWidth" title="Linienstärke"><option value="2">Dünn</option><option value="4" selected>Mittel</option><option value="7">Dick</option></select>
+        <button id="dUndo">Rückgängig</button>
+      </div>
+      <div id="card" hidden></div>
     <div id="empty">
       <div class="box">
-        <h2>360°-Foto hinzufügen</h2>
-        <p>Wähle ein 360°-Foto aus deiner Galerie oder öffne ein gespeichertes Projekt (.json).</p>
+        <h2>Foto hinzufügen</h2>
+        <p>Wähle ein 360°-Foto oder ein normales Foto aus deiner Galerie oder öffne ein gespeichertes Projekt (.json).</p>
         <div class="bt">
-          <button class="primary" id="btnOpen2">360°-Foto aus Galerie</button>
+          <button class="primary" id="btnOpen2">Foto aus Galerie</button>
           <button id="btnOpen3">Datei / Projekt öffnen</button>
         </div>
         <p class="small">Tipp: Exportiere das Foto in der Insta360-App als 360°-Foto. Es landet dann in deiner Galerie und lässt sich hier direkt auswählen.</p>
@@ -139,9 +161,10 @@ input[type=checkbox]{width:22px;height:22px}
     <div class="seg" role="group" aria-label="Modus">
       <button id="mView" class="on">Ansehen</button>
       <button id="mEdit">Bearbeiten</button>
+      <button id="mDraw">Zeichnen</button>
     </div>
     <span class="grow"></span>
-    <button id="btnAdd" aria-label="360°-Foto hinzufügen">+ Foto</button>
+    <button id="btnAdd" aria-label="Foto hinzufügen" title="Foto hinzufügen">+</button>
     <button id="btnPanel">Liste</button>
   </nav>
 </div>
@@ -155,7 +178,12 @@ input[type=checkbox]{width:22px;height:22px}
     <ul id="sceneList" class="list"></ul>
     <p class="small muted" id="noScenes">Noch keine Fotos.</p>
   </section>
-  <section id="fishSec" hidden>
+  <section id="kindSec" hidden>
+        <div class="sh"><span>Bildart dieses Raums</span></div>
+        <div class="seg" style="display:flex"><button id="kPano" style="flex:1">360°-Foto</button><button id="kFlat" style="flex:1">Normales Foto</button></div>
+        <p class="small muted" id="kindHint"></p>
+      </section>
+      <section id="fishSec" hidden>
     <div class="sh"><span>Rohbild-Umrechnung (.insp)</span></div>
     <div class="row"><span>Blickwinkel</span><input type="range" id="fishFov" min="180" max="230" step="1"><output id="fishFovOut"></output></div>
     <label class="row"><input type="checkbox" id="fishSwap"> Linsen tauschen</label>
@@ -187,7 +215,7 @@ input[type=checkbox]{width:22px;height:22px}
     <button id="btnCsv">Markerliste als Tabelle (CSV)</button>
   </section>
   <section class="small muted">
-    <b>Bedienung:</b> Wischen = umsehen · zwei Finger = zoomen · „Bearbeiten“ = Marker setzen, verschieben und ändern · Wegpunkte antippen = Raum wechseln.<br><br>
+    <b>Bedienung:</b> Wischen = umsehen · zwei Finger = zoomen · „Bearbeiten“ = Marker setzen, verschieben und ändern · Wegpunkte antippen = Raum wechseln · „Zeichnen“ = Linien und Freihand, eine Linie antippen = beschriften, Farbe ändern oder löschen.<br><br>
     <b>Speichern:</b> Das Projekt wird als .json-Datei gespeichert, mit allen 360°-Fotos, Markern und Detailfotos. Du kannst es auch am PC in der Desktop-Version öffnen und umgekehrt.<br><br>
     Alles wird lokal auf deinem Gerät verarbeitet.
   </section>
@@ -229,6 +257,16 @@ input[type=checkbox]{width:22px;height:22px}
 </div>
 
 <div id="lb" hidden><div class="lbimg"><img id="lbImg" alt=""></div><div class="lbbar"><button id="lbPrev" class="sm">‹</button><span class="lbcap" id="lbCap"></span><button id="lbDl" class="sm">Speichern</button><button id="lbNext" class="sm">›</button><button id="lbClose" class="sm">✕</button></div></div>
+<div id="drawWrap" class="modal" hidden>
+  <div class="dlg" role="dialog" aria-modal="true">
+    <h2>Linie bearbeiten</h2>
+    <label class="lbl" for="dLabel">Beschriftung (z. B. Länge oder Leitung)</label>
+    <input type="text" id="dLabel" placeholder="z. B. 3,20 m oder Kabelweg NYM 3×1,5">
+    <label class="row">Farbe <input type="color" id="dEColor"></label>
+    <div class="row"><span>Stärke</span><select id="dEWidth" style="width:auto"><option value="2">Dünn</option><option value="4">Mittel</option><option value="7">Dick</option></select></div>
+    <div class="btns"><button id="dDel" class="danger">Löschen</button><span class="spacer"></span><button id="dCancel">Abbrechen</button><button id="dSave" class="primary">Speichern</button></div>
+  </div>
+</div>
 <div id="busy" hidden><div class="b"><div class="spin"></div><span id="busyTxt">Bitte warten …</span></div></div>
 <div id="toast" hidden></div>
 <input type="file" id="imgIn" multiple accept="image/*" hidden>
@@ -315,7 +353,13 @@ function mkProg(fs){
   const u={};const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);for(let i=0;i<n;i++){const nm=gl.getActiveUniform(p,i).name;u[nm]=gl.getUniformLocation(p,nm);}
   return {p,u,a:gl.getAttribLocation(p,'p')};
 }
-const PV = mkProg(FS_VIEW), PF = mkProg(FS_FISH);
+const FS_FLAT = `precision highp float;varying vec2 v;uniform sampler2D uTex;uniform vec2 uC,uK;
+void main(){vec2 uv=vec2(uC.x+v.x*uK.x,uC.y-v.y*uK.y);
+if(uv.x<0.||uv.x>1.||uv.y<0.||uv.y>1.){gl_FragColor=vec4(.1,.11,.13,1.);return;}
+gl_FragColor=texture2D(uTex,uv);}`;
+const PV = mkProg(FS_VIEW), PF = mkProg(FS_FISH), PFL = mkProg(FS_FLAT);
+const isFlat = s => !!s && s.kind==='flat';
+function flatScale(W,H){ const s=cur(); return Math.min(W/s.w,H/s.h)*(s.view.z||1); }
 const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,quad); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
 function useProg(P){gl.useProgram(P.p);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(P.a);gl.vertexAttribPointer(P.a,2,gl.FLOAT,false,0,0);}
 function texParams(){gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);}
@@ -333,7 +377,12 @@ function render(){
   if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
   gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,cw,ch);
   gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT);
-  if(hasTex && cur()){
+  if(hasTex && isFlat(cur()) && cur().w){
+    const s=cur(), v=s.view, sc=flatScale(W,H); useProg(PFL);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,texView);
+    gl.uniform1i(PFL.u.uTex,0); gl.uniform2f(PFL.u.uC,v.fx,v.fy); gl.uniform2f(PFL.u.uK,W/2/(sc*s.w),H/2/(sc*s.h));
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  } else if(hasTex && cur() && !isFlat(cur())){
     const v=cur().view; useProg(PV);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,texView);
     gl.uniform1i(PV.u.uTex,0); gl.uniform1f(PV.u.uYaw,v.yaw*D2R); gl.uniform1f(PV.u.uPitch,v.pitch*D2R);
@@ -343,6 +392,9 @@ function render(){
   layoutOverlay(W,H);
 }
 function project(lon,lat,W,H){
+  if(isFlat(cur())){ const s=cur(); if(!s.w) return null; const v=s.view, sc=flatScale(W,H);
+    const x=W/2+(lon-v.fx)*sc*s.w, y=H/2+(lat-v.fy)*sc*s.h;
+    if(x<-60||y<-60||x>W+60||y>H+60) return null; return {x,y}; }
   const v=cur().view, f=Math.tan(v.fov*D2R/2), a=W/H;
   const lo=lon*D2R, la=lat*D2R;
   const x=Math.cos(la)*Math.sin(lo), y=Math.sin(la), z=Math.cos(la)*Math.cos(lo);
@@ -355,6 +407,8 @@ function project(lon,lat,W,H){
   return {x:(sx+1)/2*W, y:(1-sy2)/2*H};
 }
 function screenToLL(cx,cy){
+  if(isFlat(cur())){ const r=stage.getBoundingClientRect(), s=cur(), v=s.view, sc=flatScale(r.width,r.height);
+    return {lon:clamp(v.fx+(cx-r.left-r.width/2)/(sc*s.w),0,1), lat:clamp(v.fy+(cy-r.top-r.height/2)/(sc*s.h),0,1)}; }
   const r=stage.getBoundingClientRect(), W=r.width, H=r.height, v=cur().view;
   const f=Math.tan(v.fov*D2R/2), a=W/H;
   const sx=((cx-r.left)/W)*2-1, sy=1-((cy-r.top)/H)*2;
@@ -391,6 +445,7 @@ function fillMarkerEl(el,m){
   el.title=m.type==='wegpunkt' ? 'Wegpunkt: '+displayLabel(m)+' (klicken zum Wechseln)' : (TYPES[m.type]||{}).name+(m.label?': '+m.label:'');
 }
 function layoutOverlay(W,H){
+  renderDrawings(W,H);
   if(!cur()) return;
   for(const m of visibleMarkers()){
     const el=elMap.get(m.id); if(!el) continue;
@@ -404,13 +459,13 @@ function layoutOverlay(W,H){
 /* ---------- Bedienung: Umsehen / Zoomen ---------- */
 const ptrs=new Map(); let gesture=null, pinch=null;
 stage.addEventListener('pointerdown',e=>{
-  if(!cur()||e.target.closest('#card')||e.target.closest('#empty')) return;
+  if(!cur()||e.target.closest('#card')||e.target.closest('#empty')||e.target.closest('#drawBar')) return;
   const mkEl=e.target.closest('.mk');
   if(st.mode==='edit'&&mkEl) return;
   stage.setPointerCapture(e.pointerId);
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(ptrs.size===1){ gesture={x0:e.clientX,y0:e.clientY,lx:e.clientX,ly:e.clientY,moved:false,mk:mkEl?mkEl.dataset.id:null}; stopFly(); }
-  else if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,fov:cur().view.fov}; if(gesture) gesture.moved=true; }
+  if(ptrs.size===1){ gesture={x0:e.clientX,y0:e.clientY,lx:e.clientX,ly:e.clientY,moved:false,mk:mkEl?mkEl.dataset.id:null,draw:st.mode==='draw',dr:(e.target.closest('[data-dr]')||{dataset:{}}).dataset.dr||null}; stopFly(); }
+  else if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,fov:cur().view.fov,z:cur().view.z||1}; if(gesture){ gesture.moved=true; gesture.cancel=true; } stroke=null; }
 });
 stage.addEventListener('pointermove',e=>{
   if(!ptrs.has(e.pointerId)) return;
@@ -418,12 +473,15 @@ stage.addEventListener('pointermove',e=>{
   const v=cur().view, H=stage.clientHeight;
   if(ptrs.size>=2&&pinch){
     const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y)||1;
-    v.fov=clamp(pinch.fov*pinch.d/d,25,110); requestRender();
+    if(isFlat(cur())) v.z=clamp(pinch.z*d/pinch.d,1,10); else v.fov=clamp(pinch.fov*pinch.d/d,25,110); requestRender();
   } else if(gesture){
+    if(gesture.draw){ drawMove(e); return; }
     if(!gesture.moved&&Math.hypot(e.clientX-gesture.x0,e.clientY-gesture.y0)>5) gesture.moved=true;
     if(gesture.moved){
       const dx=e.clientX-gesture.lx, dy=e.clientY-gesture.ly;
-      v.yaw=normYaw(v.yaw-dx*v.fov/H); v.pitch=clamp(v.pitch+dy*v.fov/H,-89,89); requestRender();
+      if(isFlat(cur())){ const s=cur(), sc=flatScale(stage.clientWidth,H); v.fx=clamp(v.fx-dx/(sc*s.w),0,1); v.fy=clamp(v.fy-dy/(sc*s.h),0,1); }
+      else { v.yaw=normYaw(v.yaw-dx*v.fov/H); v.pitch=clamp(v.pitch+dy*v.fov/H,-89,89); }
+      requestRender();
     }
     gesture.lx=e.clientX; gesture.ly=e.clientY;
   }
@@ -435,6 +493,7 @@ function endPtr(e){
   if(ptrs.size===1&&gesture){ const r=[...ptrs.values()][0]; gesture.lx=r.x; gesture.ly=r.y; }
   if(ptrs.size===0&&gesture){
     const g=gesture; gesture=null;
+    if(g.draw){ if(g.moved&&!g.cancel&&e.type==='pointerup') drawFinish(); else { stroke=null; requestRender(); if(!g.moved&&g.dr&&e.type==='pointerup') openDrawDialog(g.dr); } return; }
     if(!g.moved&&e.type==='pointerup'){
       if(st.mode==='edit') newMarkerAt(e.clientX,e.clientY);
       else if(g.mk){ const m=findMarker(g.mk); if(m&&m.type==='wegpunkt') goToLink(m); else showCard(g.mk); }
@@ -446,7 +505,10 @@ stage.addEventListener('pointerup',endPtr);
 stage.addEventListener('pointercancel',endPtr);
 stage.addEventListener('wheel',e=>{
   if(!cur()) return; e.preventDefault();
-  const v=cur().view; v.fov=clamp(v.fov*Math.exp(e.deltaY*0.0012),25,110); requestRender();
+  const v=cur().view;
+  if(isFlat(cur())){ const b=screenToLL(e.clientX,e.clientY); v.z=clamp(v.z*Math.exp(-e.deltaY*0.0015),1,10); const a=screenToLL(e.clientX,e.clientY); v.fx=clamp(v.fx+b.lon-a.lon,0,1); v.fy=clamp(v.fy+b.lat-a.lat,0,1); }
+  else v.fov=clamp(v.fov*Math.exp(e.deltaY*0.0012),25,110);
+  requestRender();
 },{passive:false});
 window.addEventListener('resize',requestRender);
 
@@ -475,6 +537,9 @@ function attachMarkerDrag(el,m){
 let flyRaf=0;
 function stopFly(){ if(flyRaf){cancelAnimationFrame(flyRaf);flyRaf=0;} }
 function flyTo(m,done){
+  if(isFlat(cur())){ stopFly(); const v=cur().view, x0=v.fx, y0=v.fy, t0=performance.now(), T=400;
+    const st2=t=>{ const k=Math.min(1,(t-t0)/T), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2; v.fx=x0+(m.lon-x0)*e; v.fy=y0+(m.lat-y0)*e; render(); if(k<1) flyRaf=requestAnimationFrame(st2); else {flyRaf=0; if(done)done();} };
+    flyRaf=requestAnimationFrame(st2); return; }
   stopFly(); const v=cur().view; const y0=v.yaw, p0=v.pitch;
   let dy=normYaw(m.lon-y0); const p1=clamp(m.lat,-80,80); const t0=performance.now(), T=450;
   const step=t=>{ const k=Math.min(1,(t-t0)/T), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
@@ -551,7 +616,7 @@ $('#fSave').onclick=()=>{
   if(m.type==='wegpunkt'&&m.target&&$('#fBack').checked){
     const t=sceneById(m.target), here=cur();
     if(t&&!t.markers.some(x=>x.type==='wegpunkt'&&x.target===here.id)){
-      t.markers.push({id:uid(),type:'wegpunkt',label:'',note:'',color:TYPES.wegpunkt.color,target:here.id,lon:normYaw(m.lon+180),lat:clamp(m.lat,-30,10)});
+      const bp=backPos(here,m,t); t.markers.push({id:uid(),type:'wegpunkt',label:'',note:'',color:TYPES.wegpunkt.color,target:here.id,lon:bp.lon,lat:bp.lat});
       toast('Rückweg in „'+t.name+'“ angelegt. Schieb ihn dort bei Bedarf an die richtige Tür.',6000);
     }
   }
@@ -607,6 +672,84 @@ $('#lbPrev').onclick=()=>lbStep(-1); $('#lbNext').onclick=()=>lbStep(1); $('#lbC
 $('#lb').addEventListener('click',e=>{ if(e.target.classList.contains('lbimg')) closeLightbox(); });
 $('#lbDl').onclick=()=>{ const ph=lbList[lbIdx]; if(ph) download(ph.blob,fileSafe(lbTitle)+'_foto'+(lbIdx+1)+'.jpg'); };
 
+/* ---------- Zeichnen: Linien & Freihand ---------- */
+const DCOLORS=['#ff3b30','#ff9500','#ffd60a','#34c759','#0a84ff','#ffffff','#111111'];
+const dst={tool:'line',color:'#ff3b30',width:4};
+let stroke=null, drEditId=null;
+const drawSvg=$('#draw');
+const escX=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const okColor=c=>/^#[0-9a-f]{6}$/i.test(c)?c:'#ff3b30';
+function ll2v(lon,lat){const a=lon*D2R,b=lat*D2R;return [Math.cos(b)*Math.sin(a),Math.sin(b),Math.cos(b)*Math.cos(a)];}
+function v2ll(v){const l=Math.hypot(v[0],v[1],v[2])||1;return [Math.atan2(v[0],v[2])/D2R,Math.asin(v[1]/l)/D2R];}
+function dPts(d){
+  if(d.kind==='line'&&!isFlat(cur())&&d.pts.length===2){ const a=ll2v(d.pts[0][0],d.pts[0][1]), b=ll2v(d.pts[1][0],d.pts[1][1]), out=[];
+    for(let i=0;i<=48;i++){ const t=i/48; out.push(v2ll([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t])); } return out; }
+  return d.pts;
+}
+function projD(lon,lat,W,H){
+  if(isFlat(cur())){ const s=cur(); if(!s.w) return null; const v=s.view, sc=flatScale(W,H); return {x:W/2+(lon-v.fx)*sc*s.w, y:H/2+(lat-v.fy)*sc*s.h}; }
+  return project(lon,lat,W,H);
+}
+function dGeom(d,W,H){
+  const P=dPts(d).map(p=>projD(p[0],p[1],W,H)); const lines=[]; let cl=null;
+  for(const q of P){ if(q){ if(!cl){cl=[];lines.push(cl);} cl.push(q); } else cl=null; }
+  const ends=d.kind==='line'?[P[0],P[P.length-1]].filter(Boolean):[];
+  return {lines:lines.filter(l=>l.length>1),mid:P[Math.floor(P.length/2)],ends};
+}
+function renderDrawings(W,H){
+  const s=cur(); if(!s){ drawSvg.innerHTML=''; return; }
+  const list=(s.drawings||[]).slice(); if(stroke) list.push(stroke);
+  let h='';
+  for(const d of list){
+    const g=dGeom(d,W,H); if(!g.lines.length&&!g.ends.length) continue;
+    const pd=g.lines.map(l=>'M'+l.map(p=>p.x.toFixed(1)+' '+p.y.toFixed(1)).join('L')).join('');
+    const c=okColor(d.color), w=+d.width||4;
+    if(pd){
+      h+=`<path d="${pd}" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="${w+2}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      h+=`<path d="${pd}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      if(d.id) h+=`<path class="hit" data-dr="${d.id}" d="${pd}" fill="none" stroke="transparent" stroke-width="${Math.max(22,w+14)}" stroke-linecap="round"/>`;
+    }
+    for(const e of g.ends) h+=`<circle cx="${e.x.toFixed(1)}" cy="${e.y.toFixed(1)}" r="${w/2+2.5}" fill="${c}" stroke="rgba(0,0,0,.5)" stroke-width="1"/>`;
+    if(d.label&&g.mid) h+=`<text x="${g.mid.x.toFixed(1)}" y="${(g.mid.y-w/2-8).toFixed(1)}" text-anchor="middle">${escX(d.label)}</text>`;
+  }
+  drawSvg.innerHTML=h;
+}
+function drawMove(e){
+  const g=gesture; if(g.cancel) return;
+  if(!g.moved){ if(Math.hypot(e.clientX-g.x0,e.clientY-g.y0)<=4) return; g.moved=true;
+    const ll=screenToLL(g.x0,g.y0), p=[ll.lon,ll.lat];
+    stroke={kind:dst.tool,color:dst.color,width:dst.width,label:'',pts:dst.tool==='line'?[p,p.slice()]:[p],_last:[g.x0,g.y0],_start:[g.x0,g.y0]}; }
+  if(!stroke) return;
+  const ll=screenToLL(e.clientX,e.clientY), p=[ll.lon,ll.lat];
+  if(stroke.kind==='line') stroke.pts[1]=p;
+  else if(Math.hypot(e.clientX-stroke._last[0],e.clientY-stroke._last[1])>=3){ stroke.pts.push(p); stroke._last=[e.clientX,e.clientY]; }
+  stroke._end=[e.clientX,e.clientY]; requestRender();
+}
+function drawFinish(){
+  const s=cur(), d=stroke; stroke=null; requestRender(); if(!s||!d) return;
+  const e=d._end||d._start; if(Math.hypot(e[0]-d._start[0],e[1]-d._start[1])<6&&d.pts.length<3) return;
+  const k=Math.pow(10,isFlat(s)?5:3);
+  (s.drawings||(s.drawings=[])).push({id:uid(),kind:d.kind,color:d.color,width:d.width,label:'',pts:d.pts.map(p=>[Math.round(p[0]*k)/k,Math.round(p[1]*k)/k])});
+  markDirty();
+}
+const swEl=$('#swatches');
+DCOLORS.forEach(c=>{ const b=document.createElement('button'); b.type='button'; b.style.background=c; b.dataset.c=c; b.title='Farbe'; b.onclick=()=>{ dst.color=c; $('#dColor').value=c; syncDrawBar(); }; swEl.appendChild(b); });
+function syncDrawBar(){ $('#tLine').classList.toggle('on',dst.tool==='line'); $('#tFree').classList.toggle('on',dst.tool==='free'); swEl.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.c===dst.color)); $('#dWidth').value=String(dst.width); }
+$('#tLine').onclick=()=>{ dst.tool='line'; syncDrawBar(); };
+$('#tFree').onclick=()=>{ dst.tool='free'; syncDrawBar(); };
+$('#dColor').oninput=e=>{ dst.color=e.target.value; syncDrawBar(); };
+$('#dWidth').onchange=e=>{ dst.width=+e.target.value; };
+$('#dUndo').onclick=()=>{ const s=cur(); if(s&&s.drawings&&s.drawings.length){ s.drawings.pop(); markDirty(); requestRender(); } else toast('Keine Zeichnung zum Rückgängigmachen.'); };
+syncDrawBar();
+function openDrawDialog(id){ const d=(cur().drawings||[]).find(x=>x.id===id); if(!d) return; drEditId=id; $('#dLabel').value=d.label||''; $('#dEColor').value=okColor(d.color); $('#dEWidth').value=String(d.width); $('#drawWrap').hidden=false; setTimeout(()=>$('#dLabel').focus(),30); }
+function closeDrawDialog(){ $('#drawWrap').hidden=true; drEditId=null; }
+$('#dCancel').onclick=closeDrawDialog;
+$('#drawWrap').addEventListener('pointerdown',e=>{ if(e.target.id==='drawWrap') closeDrawDialog(); });
+$('#dSave').onclick=()=>{ const d=(cur().drawings||[]).find(x=>x.id===drEditId); if(d){ d.label=$('#dLabel').value.trim(); d.color=$('#dEColor').value; d.width=+$('#dEWidth').value; markDirty(); requestRender(); } closeDrawDialog(); };
+$('#dDel').onclick=()=>{ const s=cur(); s.drawings=(s.drawings||[]).filter(x=>x.id!==drEditId); markDirty(); requestRender(); closeDrawDialog(); };
+$('#dLabel').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('#dSave').click(); } });
+function syncModeUI(){ $('#hint').hidden=!(st.mode==='edit'&&cur()); $('#drawBar').hidden=!(st.mode==='draw'&&cur()); }
+
 /* ---------- Seitenleiste ---------- */
 const filterSel=$('#filter');
 filterSel.innerHTML='<option value="">Alle Typen</option>'+TYPE_KEYS.map(k=>`<option value="${k}">${TYPES[k].name}</option>`).join('');
@@ -621,7 +764,7 @@ function renderPanel(){
   st.scenes.forEach((s,i)=>{
     const li=document.createElement('li'); if(i===st.cur) li.classList.add('on');
     const nm=document.createElement('span'); nm.className='nm'; nm.textContent=s.name;
-    const c=document.createElement('span'); c.className='cnt'; c.textContent=s.markers.length+' M.';
+    const c=document.createElement('span'); c.className='cnt'; c.textContent=(isFlat(s)?'Foto':'360°')+' · '+s.markers.length+' M.';
     const rn=document.createElement('button'); rn.className='ib'; rn.title='Umbenennen'; rn.textContent='✎';
     rn.onclick=async e=>{ e.stopPropagation(); const n=await ask('Name des Raums:',{input:s.name,ok:'Übernehmen'}); if(n&&n.trim()){ s.name=n.trim(); markDirty(); rebuildOverlay(); } };
     const dl=document.createElement('button'); dl.className='ib'; dl.title='Raum entfernen'; dl.textContent='✕';
@@ -645,11 +788,16 @@ function renderPanel(){
     ml.appendChild(li);
   }
   const fs=$('#fishSec'); fs.hidden=!(s&&s.src);
+  $('#kindSec').hidden=!s;
+  if(s){ $('#kPano').classList.toggle('on',!isFlat(s)); $('#kFlat').classList.toggle('on',isFlat(s)); const lock=s.markers.length>0||(s.drawings||[]).length>0||!!s.src; $('#kPano').disabled=$('#kFlat').disabled=lock;
+    $('#kindHint').textContent=s.src?'Rohbilder (.insp) sind immer 360°-Fotos.':lock?'Umstellen ist nur möglich, solange der Raum noch keine Marker oder Zeichnungen hat.':'Wird beim Laden automatisch erkannt: 360°-Fotos haben das Format 2:1.'; }
   if(s&&s.src){ $('#fishFov').value=s.src.fov; $('#fishFovOut').textContent=s.src.fov+'°'; $('#fishSwap').checked=s.src.swap; $('#fishRot').value=String(s.src.rot); }
   $('#empty').hidden=st.scenes.length>0;
   $('#roomTitle').textContent=cur()?cur().name:'360° Raumnotizen';
   $('#btnSave').disabled=$('#btnPng').disabled=$('#btnCsv').disabled=!st.scenes.length;
 }
+function setKind(k){ const s=cur(); if(!s||s.markers.length||(s.drawings||[]).length||s.src||(s.kind||'pano')===k) return; s.kind=k; Object.assign(s.view,{yaw:0,pitch:0,fx:.5,fy:.5,z:1}); markDirty(); rebuildOverlay(); requestRender(); }
+$('#kPano').onclick=()=>setKind('pano'); $('#kFlat').onclick=()=>setKind('flat');
 $('#fishFov').oninput=e=>{ $('#fishFovOut').textContent=e.target.value+'°'; };
 $('#fishApply').onclick=async()=>{
   const s=cur(); if(!s||!s.src) return;
@@ -685,20 +833,21 @@ function ask(msg,opt){
 /* ---------- Modus ---------- */
 function setMode(m){
   st.mode=m; $('#mView').classList.toggle('on',m==='view'); $('#mEdit').classList.toggle('on',m==='edit');
-  stage.classList.toggle('edit',m==='edit'); $('#hint').hidden=!(m==='edit'&&cur()); hideCard();
+  stage.classList.toggle('edit',m==='edit'); stage.classList.toggle('draw',m==='draw'); $('#mDraw').classList.toggle('on',m==='draw'); stroke=null; syncModeUI(); hideCard(); requestRender();
 }
 $('#mView').onclick=()=>setMode('view');
 $('#mEdit').onclick=()=>setMode('edit');
+$('#mDraw').onclick=()=>setMode('draw');
 
 /* ---------- Bilder laden ---------- */
 function canvasToBlob(c,type,q){ return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('toBlob')),type,q)); }
-async function prepEquirect(file){
+async function prepImage(file){
   const bmp=await createImageBitmap(file); const w=bmp.width,h=bmp.height;
-  if(Math.abs(w/h-2)>0.06) toast('Hinweis: „'+file.name+'“ hat kein 2:1-Format und ist evtl. kein vollständiges 360°-Panorama.',6000);
-  if(w<=CAP&&h<=CAP){ if(bmp.close)bmp.close(); return file; }
-  const s=Math.min(CAP/w,CAP/h), cw=Math.round(w*s), ch=Math.round(h*s);
+  const kind=Math.abs(w/h-2)<=0.06?'pano':'flat';
+  if(w<=CAP&&h<=CAP){ if(bmp.close)bmp.close(); return {blob:file,kind}; }
+  const f=Math.min(CAP/w,CAP/h), cw=Math.round(w*f), ch=Math.round(h*f);
   const c=document.createElement('canvas'); c.width=cw; c.height=ch; const x=c.getContext('2d'); x.imageSmoothingQuality='high'; x.drawImage(bmp,0,0,cw,ch); if(bmp.close)bmp.close();
-  return canvasToBlob(c,'image/jpeg',0.92);
+  return {blob:await canvasToBlob(c,'image/jpeg',0.92),kind};
 }
 async function convertFisheye(src){
   let img=await createImageBitmap(src.blob); const w=img.width,h=img.height;
@@ -728,9 +877,9 @@ async function addImageFile(file){
   const isInsp=/\.insp$/i.test(file.name);
   busy(true,isInsp?'Rohbild wird umgerechnet …':'Bild wird verarbeitet …');
   try{
-    const sc={id:uid(),name:file.name.replace(/\.[^.]+$/,''),markers:[],view:{yaw:0,pitch:0,fov:stage.clientWidth<stage.clientHeight?95:80}};
+    const sc={id:uid(),name:file.name.replace(/\.[^.]+$/,''),markers:[],drawings:[],kind:'pano',view:{yaw:0,pitch:0,fov:stage.clientWidth<stage.clientHeight?95:80,fx:.5,fy:.5,z:1}};
     if(isInsp){ sc.src={blob:new Blob([file],{type:'image/jpeg'}),fov:200,swap:false,rot:0}; sc.blob=await convertFisheye(sc.src); }
-    else sc.blob=await prepEquirect(file);
+    else { const r=await prepImage(file); sc.blob=r.blob; sc.kind=r.kind; }
     st.scenes.push(sc); markDirty(); await switchScene(st.scenes.length-1);
     if(isInsp) toast('Rohbild umgerechnet. Falls es verdreht oder doppelt wirkt: Einstellungen unter „Rohbild-Umrechnung“ anpassen.',7000);
   }catch(err){
@@ -739,16 +888,21 @@ async function addImageFile(file){
   }finally{ busy(false); }
 }
 async function switchScene(i){
-  st.cur=i; hideCard(); hasTex=false; renderPanel(); rebuildOverlay(); $('#hint').hidden=!(st.mode==='edit'&&cur());
+  st.cur=i; hideCard(); hasTex=false; renderPanel(); rebuildOverlay(); syncModeUI();
   const sc=st.scenes[i]; if(!sc){ requestRender(); return; }
   busy(true,'Raum wird geladen …');
   try{
     const bmp=await createImageBitmap(sc.blob);
     if(st.cur!==i){ if(bmp.close)bmp.close(); return; }
-    gl.bindTexture(gl.TEXTURE_2D,texView); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,bmp); if(bmp.close)bmp.close();
+    sc.w=bmp.width; sc.h=bmp.height; gl.bindTexture(gl.TEXTURE_2D,texView); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,bmp); if(bmp.close)bmp.close();
     hasTex=true;
   }catch(err){ console.error(err); toast('Bild konnte nicht angezeigt werden.'); }
   finally{ busy(false); requestRender(); }
+}
+function backPos(from,m,to){
+  if(isFlat(to)) return {lon:0.5,lat:0.85};
+  if(isFlat(from)) return {lon:-180,lat:-10};
+  return {lon:normYaw(m.lon+180),lat:clamp(m.lat,-30,10)};
 }
 async function goToLink(m){
   const idx=st.scenes.findIndex(s=>s.id===m.target);
@@ -756,7 +910,7 @@ async function goToLink(m){
   const from=cur(); const to=st.scenes[idx];
   st.hist.push(from.id); if(st.hist.length>50) st.hist.shift();
   const back=to.markers.find(x=>x.type==='wegpunkt'&&x.target===from.id);
-  if(back){ to.view.yaw=normYaw(back.lon+180); to.view.pitch=0; }
+  if(isFlat(to)){ to.view.fx=.5; to.view.fy=.5; to.view.z=1; } else if(back){ to.view.yaw=normYaw(back.lon+180); to.view.pitch=0; }
   await fadeSwitch(idx);
 }
 async function fadeSwitch(idx){
@@ -827,7 +981,7 @@ async function saveProject(){
     const parts=['{"app":"360-raumnotizen","version":1,"name":',JSON.stringify(st.name),',"saved":',JSON.stringify(new Date().toISOString()),',"scenes":['];
     for(let i=0;i<st.scenes.length;i++){
       const s=st.scenes[i]; const url=await blobToDataURL(s.blob);
-      parts.push((i?',':'')+'{"id":'+JSON.stringify(s.id)+',"name":'+JSON.stringify(s.name)+',"view":'+JSON.stringify(s.view)+',"markers":'+(await serializeMarkers(s.markers))+',"image":"', url, '"}');
+      parts.push((i?',':'')+'{"id":'+JSON.stringify(s.id)+',"kind":'+JSON.stringify(s.kind||'pano')+',"name":'+JSON.stringify(s.name)+',"view":'+JSON.stringify(s.view)+',"drawings":'+JSON.stringify((s.drawings||[]).map(d=>({id:d.id,kind:d.kind,color:d.color,width:d.width,label:d.label,pts:d.pts})))+',"markers":'+(await serializeMarkers(s.markers))+',"image":"', url, '"}');
     }
     parts.push(']}');
     busy(false);
@@ -851,7 +1005,7 @@ async function loadProject(file){
         for(const u of (Array.isArray(m.photos)?m.photos:[])){ try{ photos.push({id:uid(),blob:dataURLToBlob(u)}); }catch(_){} }
         markers.push({id:String(m.id||uid()),type:t,label:String(m.label||''),note:String(m.note||''),color:/^#[0-9a-f]{6}$/i.test(m.color)?m.color:TYPES[t].color,lon:+m.lon||0,lat:+m.lat||0,target:m.target?String(m.target):undefined,photos});
       }
-      scenes.push({id:String(s.id||uid()),name:String(s.name||'Raum'),view:Object.assign({yaw:0,pitch:0,fov:80},s.view||{}),blob,markers});
+      scenes.push({id:String(s.id||uid()),name:String(s.name||'Raum'),drawings:(Array.isArray(s.drawings)?s.drawings:[]).filter(d=>d&&Array.isArray(d.pts)&&d.pts.length).map(d=>({id:String(d.id||uid()),kind:d.kind==='free'?'free':'line',color:okColor(d.color),width:[2,4,7].includes(+d.width)?+d.width:4,label:String(d.label||''),pts:d.pts.map(p=>[+p[0]||0,+p[1]||0])})),kind:s.kind==='flat'?'flat':'pano',view:Object.assign({yaw:0,pitch:0,fov:80,fx:.5,fy:.5,z:1},s.view||{}),blob,markers});
     }
     st.hist=[]; st.scenes=scenes; st.name=String(data.name||'Raumdokumentation'); $('#pname').value=st.name; st.cur=-1;
     if(scenes.length) await switchScene(0); else renderPanel();
@@ -886,6 +1040,12 @@ $('#btnPng').onclick=async()=>{
   if(!cur()) return; render();
   const c=document.createElement('canvas'); c.width=canvas.width; c.height=canvas.height; const x=c.getContext('2d'); x.drawImage(canvas,0,0);
   const W=stage.clientWidth,H=stage.clientHeight,dpr=canvas.width/W;
+  for(const d of (cur().drawings||[])){ const g=dGeom(d,W,H), c=okColor(d.color), w=(+d.width||4)*dpr;
+    x.save(); x.lineCap='round'; x.lineJoin='round';
+    for(const pass of [[w+2*dpr,'rgba(0,0,0,.45)'],[w,c]]){ x.lineWidth=pass[0]; x.strokeStyle=pass[1]; for(const l of g.lines){ x.beginPath(); l.forEach((p,i)=>i?x.lineTo(p.x*dpr,p.y*dpr):x.moveTo(p.x*dpr,p.y*dpr)); x.stroke(); } }
+    x.fillStyle=c; for(const e of g.ends){ x.beginPath(); x.arc(e.x*dpr,e.y*dpr,w/2+2.5*dpr,0,Math.PI*2); x.fill(); }
+    if(d.label&&g.mid){ x.font=`600 ${13*dpr}px system-ui,sans-serif`; x.textAlign='center'; x.textBaseline='alphabetic'; x.lineWidth=4*dpr; x.strokeStyle='rgba(0,0,0,.85)'; const ty=(g.mid.y-(+d.width||4)/2-8)*dpr; x.strokeText(d.label,g.mid.x*dpr,ty); x.fillStyle='#fff'; x.fillText(d.label,g.mid.x*dpr,ty); }
+    x.restore(); }
   for(const m of visibleMarkers()){ const p=project(m.lon,m.lat,W,H); if(p) drawMarker2D(x,m,p.x*dpr,p.y*dpr,dpr); }
   const foot=st.name+' · '+cur().name+' · '+new Date().toLocaleDateString('de-DE');
   drawLabel(x,foot,10*dpr,c.height-20*dpr,dpr,'rgba(255,255,255,.25)',false);
@@ -895,9 +1055,9 @@ $('#btnPng').onclick=async()=>{
 /* ---------- Export: CSV ---------- */
 $('#btnCsv').onclick=()=>{
   const q=v=>'"'+String(v).replace(/"/g,'""').replace(/\r?\n/g,' ')+'"';
-  const rows=[['Raum','Typ','Bezeichnung','Notiz','Führt zu Raum','Fotos','Horizontal (°)','Vertikal (°)'].map(q).join(';')];
+  const rows=[['Raum','Typ','Bezeichnung','Notiz','Führt zu Raum','Fotos','Horizontal (° / % bei Fotos)','Vertikal (° / % bei Fotos)'].map(q).join(';')];
   for(const s of st.scenes) for(const m of s.markers)
-    rows.push([s.name,TYPES[m.type].name,m.label,m.note,m.type==='wegpunkt'?((sceneById(m.target)||{}).name||''):'',(m.photos||[]).length,m.lon.toFixed(1).replace('.',','),m.lat.toFixed(1).replace('.',',')].map(q).join(';'));
+    rows.push([s.name,TYPES[m.type].name,m.label,m.note,m.type==='wegpunkt'?((sceneById(m.target)||{}).name||''):'',(m.photos||[]).length,isFlat(s)?Math.round(m.lon*100)+' %':m.lon.toFixed(1).replace('.',','),isFlat(s)?Math.round(m.lat*100)+' %':m.lat.toFixed(1).replace('.',',')].map(q).join(';'));
   download(new Blob(['﻿'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'}),fileSafe(st.name)+'_marker.csv');
 };
 

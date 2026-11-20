@@ -1,7 +1,7 @@
 /* Offline-Speicher für 360° Raumnotizen.
    Startet sofort aus dem Speicher und holt im Hintergrund die neueste Version.
    Bei einem Update die Versionsnummer unten erhöhen. */
-const CACHE = 'raumnotizen-v1';
+const CACHE = 'raumnotizen-v3';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png', './favicon.png'];
 
 self.addEventListener('install', e => {
