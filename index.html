@@ -123,6 +123,28 @@ input[type=checkbox]{width:22px;height:22px}
 #drawBar .sw button.on{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
 #drawBar select{width:auto;padding:5px 6px}
 #drawBar input[type=color]{width:34px;height:32px;padding:0;border:0;background:none}
+
+#cap{position:fixed;inset:0;background:#000;z-index:70;overflow:hidden;touch-action:none}
+#cap[hidden]{display:none}
+#capVideo,#capCanvas{position:absolute;inset:0;width:100%;height:100%}
+#capVideo{object-fit:cover}
+#capFlash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .3s}
+#capFlash.on{opacity:.65;transition:none}
+.capTop{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;justify-content:space-between;padding:calc(8px + var(--st)) 10px 18px;background:linear-gradient(rgba(0,0,0,.65),transparent)}
+#capInfo{font-size:14px;text-align:center;flex:1;text-shadow:0 1px 3px #000}
+#capMsg{position:absolute;left:12px;right:12px;top:calc(66px + var(--st));text-align:center;font-size:16px;font-weight:600;text-shadow:0 1px 4px #000;pointer-events:none}
+.capBot{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-between;padding:18px 16px calc(16px + var(--sb));background:linear-gradient(transparent,rgba(0,0,0,.65))}
+#capShot{width:74px;height:74px;min-height:0;border-radius:50%;border:4px solid #fff;background:rgba(255,255,255,.25);padding:0}
+#capShot:active{background:rgba(255,255,255,.6)}
+.capAuto{display:flex;gap:8px;align-items:center;min-width:96px;font-size:15px;text-shadow:0 1px 3px #000}
+#capDone{min-width:96px}
+#capIntro{position:absolute;inset:0;background:rgba(10,12,15,.94);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+#capIntro[hidden]{display:none}
+#capIntro .box{max-width:470px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+#capIntro h2{margin:0 0 6px;font-size:19px}
+#capIntro ol{padding-left:20px;margin:8px 0}
+#capIntro li{margin:7px 0;font-size:15px}
+#capIntro .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 </style>
 </head>
 <body>
@@ -152,6 +174,7 @@ input[type=checkbox]{width:22px;height:22px}
         <div class="bt">
           <button class="primary" id="btnOpen2">Foto aus Galerie</button>
           <button id="btnOpen3">Datei / Projekt öffnen</button>
+          <button id="btnCap360">360° mit der Kamera aufnehmen</button>
         </div>
         <p class="small">Tipp: Exportiere das Foto in der Insta360-App als 360°-Foto. Es landet dann in deiner Galerie und lässt sich hier direkt auswählen.</p>
       </div>
@@ -174,7 +197,7 @@ input[type=checkbox]{width:22px;height:22px}
 <aside id="panel" class="sheet">
   <div class="grab"><span>Räume &amp; Marker</span><button class="sm close">Schließen</button></div>
   <section>
-    <div class="sh"><span>Räume</span><button id="addScene" class="sm">+ Foto</button></div>
+    <div class="sh"><span>Räume</span><span><button id="capScene" class="sm">360° aufnehmen</button> <button id="addScene" class="sm">+ Foto</button></span></div>
     <ul id="sceneList" class="list"></ul>
     <p class="small muted" id="noScenes">Noch keine Fotos.</p>
   </section>
@@ -182,6 +205,12 @@ input[type=checkbox]{width:22px;height:22px}
         <div class="sh"><span>Bildart dieses Raums</span></div>
         <div class="seg" style="display:flex"><button id="kPano" style="flex:1">360°-Foto</button><button id="kFlat" style="flex:1">Normales Foto</button></div>
         <p class="small muted" id="kindHint"></p>
+      </section>
+      <section id="capSec" hidden>
+        <div class="sh"><span>360°-Aufnahme nachjustieren</span></div>
+        <div class="row"><span>Blickwinkel</span><input type="range" id="capFovIn" min="45" max="95" step="1"><output id="capFovOut"></output></div>
+        <button id="capRe">Neu zusammensetzen</button>
+        <p class="small muted">Wirken Kanten an den Übergängen doppelt oder versetzt, ändere den Blickwinkel in kleinen Schritten (1–3°) und setze neu zusammen. Der beste Wert wird für künftige Aufnahmen gemerkt. Diese Einstellung gibt es nur, bis die App geschlossen wird.</p>
       </section>
       <section id="fishSec" hidden>
     <div class="sh"><span>Rohbild-Umrechnung (.insp)</span></div>
@@ -209,6 +238,7 @@ input[type=checkbox]{width:22px;height:22px}
     <input type="text" id="pname" value="Raumdokumentation">
   </section>
   <section class="stack">
+    <button id="btnCapMenu">360°-Aufnahme mit der Kamera</button>
     <button id="btnOpen">Datei / Projekt öffnen …</button>
     <button id="btnSave" class="primary">Projekt speichern (.json)</button>
     <button id="btnPng">Aktuelle Ansicht als Bild (PNG)</button>
@@ -265,6 +295,27 @@ input[type=checkbox]{width:22px;height:22px}
     <label class="row">Farbe <input type="color" id="dEColor"></label>
     <div class="row"><span>Stärke</span><select id="dEWidth" style="width:auto"><option value="2">Dünn</option><option value="4">Mittel</option><option value="7">Dick</option></select></div>
     <div class="btns"><button id="dDel" class="danger">Löschen</button><span class="spacer"></span><button id="dCancel">Abbrechen</button><button id="dSave" class="primary">Speichern</button></div>
+  </div>
+</div>
+<div id="cap" hidden>
+  <video id="capVideo" playsinline muted autoplay></video>
+  <canvas id="capCanvas"></canvas>
+  <div id="capFlash"></div>
+  <div class="capTop"><button id="capCancel" class="sm">Abbrechen</button><span id="capInfo"></span><button id="capCam" class="sm">Kamera ⟳</button></div>
+  <div id="capMsg"></div>
+  <div class="capBot"><label class="capAuto"><input type="checkbox" id="capAuto" checked> Auto</label><button id="capShot" aria-label="Foto aufnehmen"></button><button id="capDone" class="primary" disabled>Fertig</button></div>
+  <div id="capIntro">
+    <div class="box">
+      <h2>360°-Aufnahme</h2>
+      <ol>
+        <li>Halte das Handy <b>hochkant</b> und ungefähr auf Augenhöhe.</li>
+        <li>Richte den <b>Kreis in der Mitte</b> auf den gelben Punkt. Hältst du kurz still, löst die App automatisch aus. Erledigte Punkte werden grün.</li>
+        <li>Dreh dich <b>um das Handy herum</b>, nicht um dich selbst. Das Handy sollte möglichst an derselben Stelle bleiben.</li>
+        <li>Erst die mittlere Reihe, dann oben, unten, Decke und Boden. Danach auf <b>Fertig</b> tippen.</li>
+      </ol>
+      <p class="small muted">Tipp: Gleichmäßiges Licht und keine bewegten Personen im Raum ergeben die saubersten Übergänge. Die Aufnahme dauert etwa 1–2 Minuten.</p>
+      <div class="btns"><button id="capIntroCancel">Abbrechen</button><button id="capStart" class="primary">Kamera starten</button></div>
+    </div>
   </div>
 </div>
 <div id="busy" hidden><div class="b"><div class="spin"></div><span id="busyTxt">Bitte warten …</span></div></div>
@@ -789,7 +840,8 @@ function renderPanel(){
   }
   const fs=$('#fishSec'); fs.hidden=!(s&&s.src);
   $('#kindSec').hidden=!s;
-  if(s){ $('#kPano').classList.toggle('on',!isFlat(s)); $('#kFlat').classList.toggle('on',isFlat(s)); const lock=s.markers.length>0||(s.drawings||[]).length>0||!!s.src; $('#kPano').disabled=$('#kFlat').disabled=lock;
+  $('#capSec').hidden=!(s&&s.cap); if(s&&s.cap){ $('#capFovIn').value=s.cap.L; $('#capFovOut').textContent=s.cap.L+'°'; }
+  if(s){ $('#kPano').classList.toggle('on',!isFlat(s)); $('#kFlat').classList.toggle('on',isFlat(s)); const lock=s.markers.length>0||(s.drawings||[]).length>0||!!s.src||!!s.cap; $('#kPano').disabled=$('#kFlat').disabled=lock;
     $('#kindHint').textContent=s.src?'Rohbilder (.insp) sind immer 360°-Fotos.':lock?'Umstellen ist nur möglich, solange der Raum noch keine Marker oder Zeichnungen hat.':'Wird beim Laden automatisch erkannt: 360°-Fotos haben das Format 2:1.'; }
   if(s&&s.src){ $('#fishFov').value=s.src.fov; $('#fishFovOut').textContent=s.src.fov+'°'; $('#fishSwap').checked=s.src.swap; $('#fishRot').value=String(s.src.rot); }
   $('#empty').hidden=st.scenes.length>0;
@@ -1077,6 +1129,229 @@ if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostn
       w.addEventListener('statechange',()=>{ if(w.state==='activated'&&navigator.serviceWorker.controller) toast('Neue Version geladen. Sie ist beim nächsten Start der App aktiv.',6000); }); });
   }).catch(err=>console.warn('Service Worker',err)); });
 }
+/* ---------- 360°-Aufnahme mit der Handykamera ---------- */
+const capEl=$('#cap'), capVideo=$('#capVideo'), capCanvas=$('#capCanvas'), capCtx=capCanvas.getContext('2d');
+const CAPK='raum360.capFov';
+let cap=null;
+function capFov(){ let v=72; try{ v=+localStorage.getItem(CAPK)||72; }catch(_){} return clamp(v,45,95); }
+function setCapFov(v){ try{ localStorage.setItem(CAPK,String(v)); }catch(_){} }
+const vdot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const vang=(a,b)=>Math.acos(clamp(vdot(a,b),-1,1))/D2R;
+function rotY(v,a){ const c=Math.cos(a), s=Math.sin(a); return [v[0]*c-v[2]*s, v[1], v[0]*s+v[2]*c]; }
+/* Lage des Handys (W3C deviceorientation) -> Blickrichtung/oben/rechts der Kamera im App-Koordinatensystem */
+function eulerToBasis(a,b,g){
+  const cA=Math.cos(a*D2R),sA=Math.sin(a*D2R),cB=Math.cos(b*D2R),sB=Math.sin(b*D2R),cG=Math.cos(g*D2R),sG=Math.sin(g*D2R);
+  const R00=cA*cG-sA*sB*sG, R01=-cB*sA, R02=cG*sA*sB+cA*sG;
+  const R10=cG*sA+cA*sB*sG, R11=cA*cB, R12=sA*sG-cA*cG*sB;
+  const R20=-cB*sG, R21=sB, R22=cB*cG;
+  const W=(X,Y,Z)=>[X,Z,Y];            /* Welt (Ost, Nord, Oben) -> App (rechts, oben, vorne) */
+  const x=W(R00,R10,R20), y=W(R01,R11,R21), z=W(R02,R12,R22);
+  let t=0; try{ t=((screen.orientation&&screen.orientation.angle)||window.orientation||0)*D2R; }catch(_){}
+  const c=Math.cos(t), s=Math.sin(t);
+  return { r:[c*x[0]-s*y[0], c*x[1]-s*y[1], c*x[2]-s*y[2]], u:[s*x[0]+c*y[0], s*x[1]+c*y[1], s*x[2]+c*y[2]], f:[-z[0],-z[1],-z[2]] };
+}
+function onCapOri(e){
+  if(!cap||e.alpha==null||e.beta==null) return;
+  const b=eulerToBasis(e.alpha,e.beta,e.gamma||0);
+  if(cap.off==null) cap.off=Math.atan2(b.f[0],b.f[2]);
+  const o=cap.off; cap.basis={r:rotY(b.r,o),u:rotY(b.u,o),f:rotY(b.f,o)};
+  const now=performance.now(); cap.hist.push({t:now,f:cap.basis.f}); while(cap.hist.length&&cap.hist[0].t<now-700) cap.hist.shift();
+}
+function makeTargets(ratio){
+  const L=capFov(), S=2*Math.atan(Math.tan(L/2*D2R)*(ratio||0.75))/D2R;
+  const n0=Math.max(6,Math.ceil(360/(S*0.72))), n45=Math.max(5,Math.ceil(n0*0.72)), t=[];
+  for(let k=0;k<n0;k++) t.push({lon:normYaw(k*360/n0),lat:0});
+  for(let k=0;k<n45;k++) t.push({lon:normYaw((k+.5)*360/n45),lat:45});
+  for(let k=0;k<n45;k++) t.push({lon:normYaw((k+.5)*360/n45),lat:-45});
+  t.push({lon:0,lat:87}); t.push({lon:0,lat:-87});
+  return t.map(x=>({...x,v:ll2v(x.lon,x.lat),done:false}));
+}
+async function openCapture(){
+  closeSheets();
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ toast('Die Kamera ist hier nicht verfügbar. Öffne die installierte App (über deine GitHub-Adresse).',7000); return; }
+  capEl.hidden=false; $('#capIntro').hidden=false;
+}
+async function startCam(deviceId){
+  if(cap.stream) cap.stream.getTracks().forEach(t=>t.stop());
+  const v={width:{ideal:1920},height:{ideal:1440},aspectRatio:{ideal:4/3}};
+  if(deviceId) v.deviceId={exact:deviceId}; else v.facingMode={ideal:'environment'};
+  cap.stream=await navigator.mediaDevices.getUserMedia({video:v,audio:false});
+  capVideo.srcObject=cap.stream; await capVideo.play().catch(()=>{});
+  const tr=cap.stream.getVideoTracks()[0]; cap.devId=tr&&tr.getSettings?tr.getSettings().deviceId:null; cap.camLabel=tr?tr.label:'';
+}
+$('#capStart').onclick=async()=>{
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
+      let r='granted'; try{ r=await DeviceOrientationEvent.requestPermission(); }catch(_){}
+      if(r!=='granted') toast('Hinweis: Der Zugriff auf den Lagesensor wurde nicht bestätigt. Ohne ihn funktioniert die Aufnahme nicht.',6000);
+    }
+    cap={stream:null,frames:[],targets:makeTargets(),basis:null,hist:[],off:null,auto:$('#capAuto').checked,hold:0,lastShot:0,busy:false,t0:performance.now()};
+    window.addEventListener('deviceorientation',onCapOri);
+    await startCam();
+    const vw=capVideo.videoWidth, vh=capVideo.videoHeight; if(vw&&vh) cap.targets=makeTargets(Math.min(vw,vh)/Math.max(vw,vh));
+    $('#capIntro').hidden=true;
+    try{ screen.orientation&&screen.orientation.lock&&screen.orientation.lock('portrait-primary').catch(()=>{}); }catch(_){}
+    requestAnimationFrame(capLoop);
+  }catch(err){
+    console.error(err); closeCapture();
+    toast(err&&err.name==='NotAllowedError'?'Kamerazugriff wurde abgelehnt. Erlaube ihn in den Browser-Einstellungen für diese App.':'Kamera konnte nicht gestartet werden.',7000);
+  }
+};
+function closeCapture(){
+  if(cap){ if(cap.stream) cap.stream.getTracks().forEach(t=>t.stop()); }
+  window.removeEventListener('deviceorientation',onCapOri);
+  try{ screen.orientation&&screen.orientation.unlock&&screen.orientation.unlock(); }catch(_){}
+  capVideo.srcObject=null; cap=null; capEl.hidden=true; $('#capIntro').hidden=true;
+}
+$('#capIntroCancel').onclick=closeCapture;
+$('#capCancel').onclick=async()=>{ if(cap&&cap.frames.length&&!(await ask('Aufnahme abbrechen? Die bisherigen Fotos gehen verloren.',{ok:'Verwerfen',danger:true}))) return; closeCapture(); };
+$('#capAuto').onchange=e=>{ if(cap) cap.auto=e.target.checked; };
+$('#capShot').onclick=()=>shoot();
+$('#capCam').onclick=async()=>{
+  if(!cap) return;
+  try{
+    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+    if(devs.length<2){ toast('Keine weitere Kamera gefunden.'); return; }
+    const i=devs.findIndex(d=>d.deviceId===cap.devId); const nx=devs[(i+1)%devs.length];
+    await startCam(nx.deviceId); toast('Kamera: '+(cap.camLabel||nx.label||'gewechselt')+'. Hinweis: Jede Kamera hat einen eigenen Blickwinkel.',5000);
+  }catch(err){ console.error(err); toast('Kamera konnte nicht gewechselt werden.'); }
+};
+function capScreenFp(W,H){
+  const vw=capVideo.videoWidth||W, vh=capVideo.videoHeight||H, sc=Math.max(W/vw,H/vh);
+  return (Math.max(vw,vh)*sc/2)/Math.tan(capFov()/2*D2R);
+}
+function nearestTarget(){
+  const f=cap.basis.f; let best=null, bd=1e9;
+  for(const t of cap.targets){ if(t.done) continue; const a=vang(f,t.v); if(a<bd){bd=a;best=t;} }
+  return best?{t:best,a:bd}:null;
+}
+function isStable(){
+  const h=cap.hist; if(h.length<3) return false; const now=performance.now();
+  const ref=h.find(x=>x.t>=now-320); if(!ref||now-h[0].t<250) return false;
+  return vang(ref.f,cap.basis.f)<1.3;
+}
+function capLoop(){
+  if(!cap) return; requestAnimationFrame(capLoop);
+  const dpr=Math.min(window.devicePixelRatio||1,2), W=capCanvas.clientWidth, H=capCanvas.clientHeight;
+  if(capCanvas.width!==Math.round(W*dpr)){ capCanvas.width=Math.round(W*dpr); capCanvas.height=Math.round(H*dpr); }
+  const x=capCtx; x.setTransform(dpr,0,0,dpr,0,0); x.clearRect(0,0,W,H);
+  const done=cap.targets.filter(t=>t.done).length, all=cap.targets.length;
+  $('#capInfo').textContent='Punkte '+done+' / '+all+' · Fotos '+cap.frames.length;
+  $('#capDone').disabled=cap.frames.length<4;
+  if(!cap.basis){ $('#capMsg').textContent=performance.now()-cap.t0>2500?'Der Lagesensor liefert keine Daten. Dieses Gerät oder dieser Browser wird leider nicht unterstützt.':'Lagesensor wird gestartet …'; return; }
+  const {r,u,f}=cap.basis, fp=capScreenFp(W,H), cx=W/2, cy=H/2;
+  const near=nearestTarget();
+  for(const t of cap.targets){
+    const cz=vdot(t.v,f); if(cz<0.15) continue;
+    const sx=cx+fp*vdot(t.v,r)/cz, sy=cy-fp*vdot(t.v,u)/cz;
+    if(sx<-40||sy<-40||sx>W+40||sy>H+40) continue;
+    x.beginPath(); x.arc(sx,sy,t.done?12:(near&&t===near.t?20:15),0,Math.PI*2);
+    if(t.done){ x.fillStyle='rgba(52,199,89,.9)'; x.fill(); }
+    else if(near&&t===near.t){ x.fillStyle='rgba(255,214,10,.9)'; x.fill(); x.lineWidth=3; x.strokeStyle='#fff'; x.stroke(); }
+    else { x.lineWidth=3; x.strokeStyle='rgba(255,255,255,.85)'; x.stroke(); }
+  }
+  const aligned=near&&near.a<4, stable=isStable();
+  x.beginPath(); x.arc(cx,cy,28,0,Math.PI*2); x.lineWidth=4; x.strokeStyle=aligned?(stable?'#34c759':'#ffd60a'):'rgba(255,255,255,.9)'; x.stroke();
+  x.beginPath(); x.moveTo(cx-8,cy); x.lineTo(cx+8,cy); x.moveTo(cx,cy-8); x.lineTo(cx,cy+8); x.lineWidth=2; x.stroke();
+  if(near&&!aligned){
+    let dx=vdot(near.t.v,r), dy=-vdot(near.t.v,u); const cz=vdot(near.t.v,f);
+    const onScreen=cz>0.15&&Math.abs(fp*dx/cz)<W/2-30&&Math.abs(fp*dy/cz)<H/2-30;
+    if(!onScreen){ const l=Math.hypot(dx,dy)||1; dx/=l; dy/=l; const ax=cx+dx*70, ay=cy+dy*70, ang=Math.atan2(dy,dx);
+      x.save(); x.translate(ax,ay); x.rotate(ang); x.beginPath(); x.moveTo(18,0); x.lineTo(-10,-13); x.lineTo(-10,13); x.closePath(); x.fillStyle='#ffd60a'; x.fill(); x.restore(); }
+  }
+  let msg='';
+  if(window.innerWidth>window.innerHeight) msg='Bitte das Handy hochkant halten.';
+  else if(!near) msg='Alle Punkte erledigt – tippe auf „Fertig“.';
+  else if(aligned) msg=stable?'Gut so – still halten …':'Ruhig halten …';
+  else msg=near.t.lat>60?'Jetzt nach oben zur Decke zielen':near.t.lat<-60?'Jetzt nach unten zum Boden zielen':'Kreis auf den gelben Punkt richten';
+  $('#capMsg').textContent=msg;
+  const now=performance.now();
+  if(cap.auto&&aligned&&stable&&!cap.busy&&window.innerWidth<=window.innerHeight){ if(!cap.hold) cap.hold=now; if(now-cap.hold>350&&now-cap.lastShot>900) shoot(); } else cap.hold=0;
+}
+async function shoot(){
+  if(!cap||cap.busy||!cap.basis) return;
+  const vw=capVideo.videoWidth, vh=capVideo.videoHeight; if(!vw||!vh){ toast('Kamera noch nicht bereit.'); return; }
+  cap.busy=true; cap.lastShot=performance.now(); cap.hold=0;
+  const b={r:cap.basis.r.slice(),u:cap.basis.u.slice(),f:cap.basis.f.slice()};
+  const s=Math.min(1,1920/Math.max(vw,vh)), c=document.createElement('canvas'); c.width=Math.round(vw*s); c.height=Math.round(vh*s);
+  c.getContext('2d').drawImage(capVideo,0,0,c.width,c.height);
+  const fl=$('#capFlash'); fl.classList.add('on'); requestAnimationFrame(()=>fl.classList.remove('on'));
+  try{ navigator.vibrate&&navigator.vibrate(30); }catch(_){}
+  try{
+    const blob=await canvasToBlob(c,'image/jpeg',0.9);
+    if(cap){ cap.frames.push({blob,r:b.r,u:b.u,f:b.f}); for(const t of cap.targets) if(!t.done&&vang(t.v,b.f)<12) t.done=true; }
+  }catch(err){ console.error(err); toast('Foto konnte nicht gespeichert werden.'); }
+  if(cap) cap.busy=false;
+}
+/* Einzelfotos anhand der gemessenen Richtung auf ein 360°-Bild (2:1) projizieren und weich überblenden */
+async function stitchFrames(frames,L,onProg){
+  const OW=(navigator.deviceMemory&&navigator.deviceMemory<4)?2048:4096, OH=OW/2;
+  const acc=new Float32Array(OW*OH*4);
+  const sinLon=new Float32Array(OW), cosLon=new Float32Array(OW), sinLat=new Float32Array(OH), cosLat=new Float32Array(OH);
+  for(let i=0;i<OW;i++){ const lo=((i+.5)/OW*360-180)*D2R; sinLon[i]=Math.sin(lo); cosLon[i]=Math.cos(lo); }
+  for(let j=0;j<OH;j++){ const la=(90-(j+.5)/OH*180)*D2R; sinLat[j]=Math.sin(la); cosLat[j]=Math.cos(la); }
+  const tanL=Math.tan(L/2*D2R), cv=document.createElement('canvas'), cx2=cv.getContext('2d',{willReadFrequently:true});
+  for(let k=0;k<frames.length;k++){
+    if(onProg) onProg(k); await new Promise(r=>setTimeout(r,0));
+    const fr=frames[k]; const bmp=await createImageBitmap(fr.blob); const iw=bmp.width, ih=bmp.height;
+    cv.width=iw; cv.height=ih; cx2.drawImage(bmp,0,0); if(bmp.close) bmp.close();
+    const px=cx2.getImageData(0,0,iw,ih).data;
+    const fp=(Math.max(iw,ih)/2)/tanL, hx=iw/2, hy=ih/2;
+    const rx=fr.r[0],ry=fr.r[1],rz=fr.r[2], ux=fr.u[0],uy=fr.u[1],uz=fr.u[2], fx=fr.f[0],fy=fr.f[1],fz=fr.f[2];
+    const rho=Math.atan(Math.hypot(hx,hy)/fp)/D2R+2, clat=Math.asin(clamp(fy,-1,1))/D2R, clon=Math.atan2(fx,fz)/D2R;
+    const lat1=Math.min(90,clat+rho), lat2=Math.max(-90,clat-rho);
+    const j1=Math.max(0,Math.floor((90-lat1)/180*OH)), j2=Math.min(OH-1,Math.ceil((90-lat2)/180*OH));
+    let full=lat1>=89.5||lat2<=-89.5, hw=180;
+    if(!full){ hw=rho/Math.cos(Math.max(Math.abs(lat1),Math.abs(lat2))*D2R); if(hw>=179) full=true; }
+    let ncols=full?OW:Math.ceil(hw*2/360*OW)+2; if(ncols>=OW){ ncols=OW; full=true; }
+    const i0=full?0:Math.floor((clon-hw+180)/360*OW);
+    const xm=iw-1.001, ym=ih-1.001;
+    for(let j=j1;j<=j2;j++){
+      const sl=sinLat[j], cl=cosLat[j], row=j*OW;
+      for(let c=0;c<ncols;c++){
+        let i=i0+c; if(i<0) i+=OW; else if(i>=OW) i-=OW;
+        const dx=cl*sinLon[i], dz=cl*cosLon[i];
+        const cz=dx*fx+sl*fy+dz*fz; if(cz<0.05) continue;
+        const qx=hx+fp*(dx*rx+sl*ry+dz*rz)/cz; if(qx<0||qx>xm) continue;
+        const qy=hy-fp*(dx*ux+sl*uy+dz*uz)/cz; if(qy<0||qy>ym) continue;
+        let ex=(qx<hx?qx:iw-1-qx)/hx, ey=(qy<hy?qy:ih-1-qy)/hy, w=ex*ey; w=w*w+1e-6;
+        const x0=qx|0, y0=qy|0, ax=qx-x0, ay=qy-y0, p0=(y0*iw+x0)*4, p1=p0+iw*4;
+        const w00=(1-ax)*(1-ay), w10=ax*(1-ay), w01=(1-ax)*ay, w11=ax*ay, o=(row+i)*4;
+        acc[o]  +=w*(px[p0]*w00+px[p0+4]*w10+px[p1]*w01+px[p1+4]*w11);
+        acc[o+1]+=w*(px[p0+1]*w00+px[p0+5]*w10+px[p1+1]*w01+px[p1+5]*w11);
+        acc[o+2]+=w*(px[p0+2]*w00+px[p0+6]*w10+px[p1+2]*w01+px[p1+6]*w11);
+        acc[o+3]+=w;
+      }
+    }
+  }
+  const out=new ImageData(OW,OH), d=out.data;
+  for(let n=0,N=OW*OH;n<N;n++){ const o=n*4, w=acc[o+3]; if(w>0){ d[o]=acc[o]/w; d[o+1]=acc[o+1]/w; d[o+2]=acc[o+2]/w; } else { d[o]=d[o+1]=d[o+2]=38; } d[o+3]=255; }
+  const c=document.createElement('canvas'); c.width=OW; c.height=OH; c.getContext('2d').putImageData(out,0,0);
+  return canvasToBlob(c,'image/jpeg',0.9);
+}
+$('#capDone').onclick=async()=>{
+  if(!cap||cap.frames.length<4) return;
+  const rest=cap.targets.filter(t=>!t.done).length;
+  if(rest&&!(await ask('Es fehlen noch '+rest+' Punkte. Diese Bereiche bleiben im Bild grau. Trotzdem zusammensetzen?',{ok:'Zusammensetzen'}))) return;
+  const frames=cap.frames, L=capFov(); closeCapture();
+  busy(true,'360°-Bild wird zusammengesetzt …');
+  try{
+    const blob=await stitchFrames(frames,L,k=>{ $('#busyTxt').textContent='360°-Bild wird zusammengesetzt … '+(k+1)+' / '+frames.length; });
+    const n=st.scenes.filter(s=>/^360°-Aufnahme/.test(s.name)).length+1;
+    const sc={id:uid(),name:'360°-Aufnahme '+n,markers:[],drawings:[],kind:'pano',view:{yaw:0,pitch:0,fov:stage.clientWidth<stage.clientHeight?95:80,fx:.5,fy:.5,z:1},blob,cap:{frames,L}};
+    st.scenes.push(sc); markDirty(); busy(false); await switchScene(st.scenes.length-1);
+    toast('Fertig! Wirken Übergänge versetzt? Unter „Liste“ → „360°-Aufnahme nachjustieren“ kannst du den Blickwinkel anpassen.',9000);
+  }catch(err){ console.error(err); busy(false); toast('Zusammensetzen fehlgeschlagen. Eventuell reicht der Speicher nicht – versuche es mit weniger Fotos.',8000); }
+};
+$('#capFovIn').oninput=e=>{ $('#capFovOut').textContent=e.target.value+'°'; };
+$('#capRe').onclick=async()=>{
+  const s=cur(); if(!s||!s.cap) return; const L=+$('#capFovIn').value; s.cap.L=L; setCapFov(L);
+  busy(true,'Wird neu zusammengesetzt …');
+  try{ s.blob=await stitchFrames(s.cap.frames,L,k=>{ $('#busyTxt').textContent='Wird neu zusammengesetzt … '+(k+1)+' / '+s.cap.frames.length; }); markDirty(); busy(false); await switchScene(st.cur); }
+  catch(err){ console.error(err); busy(false); toast('Neu zusammensetzen fehlgeschlagen.'); }
+};
+['btnCap360','capScene','btnCapMenu'].forEach(id=>{ $('#'+id).onclick=openCapture; });
+
 renderPanel(); updateTitle(); requestRender();
 </script>
 </body>
